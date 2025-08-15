@@ -1,49 +1,133 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Upload, FileText, Zap, Shield, ArrowRight, CheckCircle } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { FileText, Copy, Download, ArrowLeft, CheckCircle, AlertTriangle, Info } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
-export default function HomePage() {
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
+interface SummaryData {
+  full_summary: string
+  key_points: string[]
+  critical_clauses: Array<{
+    title: string
+    description: string
+  }>
+  recommendations: string[]
+  validation?: {
+    is_legal_document: boolean
+    confidence_score: number
+    validation_message: string
+  }
+}
+
+export default function ResultsPage() {
   const router = useRouter()
+  const [copiedSection, setCopiedSection] = useState<string | null>(null)
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
+  const [fileName, setFileName] = useState<string>("")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(true)
+  useEffect(() => {
+    // Load data from sessionStorage
+    try {
+      const storedResults = sessionStorage.getItem('summaryResults')
+      const storedFileName = sessionStorage.getItem('originalFileName')
+      
+      if (storedResults) {
+        const parsedData = JSON.parse(storedResults) as SummaryData
+        setSummaryData(parsedData)
+        setFileName(storedFileName || "Document")
+      } else {
+        setError("No summary data found. Please upload a document first.")
+      }
+    } catch (err) {
+      setError("Failed to load summary data.")
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const files = Array.from(e.dataTransfer.files)
-    handleFileUpload(files)
-  }, [])
-
-  const handleFileUpload = async (files: File[]) => {
-    if (files.length === 0) return
-
-    setIsProcessing(true)
-    // Simulate processing time
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-    // Navigate to results page with mock data
-    router.push("/results")
+  const handleCopy = async (text: string, section: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedSection(section)
+      setTimeout(() => setCopiedSection(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy text:', err)
+    }
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    handleFileUpload(files)
+  const downloadSummary = () => {
+    if (!summaryData) return
+
+    const content = `
+LEGAL DOCUMENT SUMMARY
+======================
+
+Document: ${fileName}
+Generated: ${new Date().toLocaleDateString()}
+
+KEY POINTS:
+${summaryData.key_points.map(point => `• ${point}`).join('\n')}
+
+CRITICAL CLAUSES:
+${summaryData.critical_clauses.map(clause => `
+${clause.title}:
+${clause.description}
+`).join('\n')}
+
+RECOMMENDATIONS:
+${summaryData.recommendations.map(rec => `• ${rec}`).join('\n')}
+
+FULL SUMMARY:
+${summaryData.full_summary}
+
+---
+DISCLAIMER: This is an AI-generated legal summary. It is not legal advice and should not be relied upon for legal decisions. Please consult with a qualified attorney for legal matters.
+    `
+
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${fileName}_summary.txt`
+    document.body.appendChild(a)
+    a.click()
+    URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto bg-secondary/20 rounded-full flex items-center justify-center animate-pulse mb-4">
+            <FileText className="w-8 h-8 text-secondary" />
+          </div>
+          <p className="text-muted-foreground">Loading summary...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !summaryData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex items-center justify-center">
+        <div className="max-w-md w-full mx-auto px-4">
+          <Alert className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error || "No summary data available"}</AlertDescription>
+          </Alert>
+          <Button onClick={() => router.push("/")} className="w-full">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Upload
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -52,279 +136,255 @@ export default function HomePage() {
       <header className="border-b border-border/50 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-secondary to-accent rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-secondary-foreground" />
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/")}
+                className="hover:bg-card transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Upload
+              </Button>
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-secondary to-accent rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-secondary-foreground" />
+                </div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-secondary bg-clip-text text-transparent">
+                  Saul-ai
+                </h1>
               </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-foreground to-secondary bg-clip-text text-transparent">
-                Saul-ai
-              </h1>
             </div>
-            <nav className="hidden md:flex items-center space-x-8">
-              <a
-                href="#features"
-                className="text-muted-foreground hover:text-foreground transition-colors duration-200"
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={downloadSummary}
+                className="hover:bg-card transition-colors bg-transparent"
               >
-                Features
-              </a>
-              <a
-                href="#how-it-works"
-                className="text-muted-foreground hover:text-foreground transition-colors duration-200"
-              >
-                How it Works
-              </a>
-              <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors duration-200">
-                About
-              </a>
-            </nav>
+                <Download className="w-4 h-4 mr-2" />
+                Export Summary
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative py-20 lg:py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-accent/5 animate-pulse-glow"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center animate-fade-in-up">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground via-secondary to-accent bg-clip-text text-transparent leading-tight">
-              Legal Documents
-              <br />
-              <span className="text-secondary">Simplified</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
-              Transform complex legal documents into clear, actionable summaries with our advanced AI technology. Free,
-              secure, and professional.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <Button
-                size="lg"
-                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg"
-              >
-                Get Started Free
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-8 py-4 text-lg font-semibold rounded-lg border-2 hover:bg-card transition-all duration-300 bg-transparent"
-              >
-                Watch Demo
-              </Button>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Document Header */}
+        <div className="mb-8 animate-fade-in-up">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center">
+              <FileText className="w-6 h-6 text-secondary" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{fileName}</h1>
+              <p className="text-muted-foreground">Legal Document Summary</p>
             </div>
           </div>
+          
+          {/* Validation Badge */}
+          {summaryData.validation && (
+            <div className="flex items-center space-x-2 text-sm">
+              <CheckCircle className="w-4 h-4 text-secondary" />
+              <span className="text-muted-foreground">
+                Legal document validated with {(summaryData.validation.confidence_score * 100).toFixed(1)}% confidence
+              </span>
+            </div>
+          )}
+        </div>
 
-          {/* File Upload Area */}
-          <div className="max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Key Points */}
             <Card
-              className={`relative overflow-hidden transition-all duration-300 ${isDragOver ? "border-secondary shadow-lg scale-105" : "border-border hover:border-secondary/50"} ${isProcessing ? "animate-pulse-glow" : ""}`}
+              className="animate-fade-in-up border-border hover:border-secondary/50 transition-all duration-300"
+              style={{ animationDelay: "0.1s" }}
             >
-              <CardContent className="p-8">
-                <div
-                  className="border-2 border-dashed border-border rounded-lg p-12 text-center transition-all duration-300 hover:border-secondary/50 hover:bg-card/50"
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  {isProcessing ? (
-                    <div className="space-y-4">
-                      <div className="w-16 h-16 mx-auto bg-secondary/20 rounded-full flex items-center justify-center animate-float">
-                        <Zap className="w-8 h-8 text-secondary animate-pulse" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-foreground">Processing Document...</h3>
-                      <p className="text-muted-foreground">Our AI is analyzing your legal document</p>
-                      <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                        <div className="bg-secondary h-full rounded-full animate-pulse" style={{ width: "70%" }}></div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="w-16 h-16 mx-auto bg-secondary/20 rounded-full flex items-center justify-center">
-                        <Upload className="w-8 h-8 text-secondary" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-foreground">Upload Your Legal Document</h3>
-                      <p className="text-muted-foreground">
-                        Drag and drop your PDF, DOC, or TXT file here, or click to browse
-                      </p>
-                      <input
-                        type="file"
-                        id="file-upload"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx,.txt"
-                        onChange={handleFileSelect}
-                        multiple
-                      />
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center space-x-2">
+                    <CheckCircle className="w-5 h-5 text-secondary" />
+                    <span>Key Points</span>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(summaryData.key_points.join("\n• "), "keyPoints")}
+                    className="hover:bg-secondary/10 transition-colors"
+                  >
+                    {copiedSection === "keyPoints" ? (
+                      <CheckCircle className="w-4 h-4 text-secondary" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  {summaryData.key_points.map((point, index) => (
+                    <li key={index} className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-secondary rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-foreground leading-relaxed">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Critical Clauses */}
+            <Card
+              className="animate-fade-in-up border-border hover:border-secondary/50 transition-all duration-300"
+              style={{ animationDelay: "0.2s" }}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  <span>Critical Clauses</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {summaryData.critical_clauses.map((clause, index) => (
+                  <div
+                    key={index}
+                    className="p-4 rounded-lg border-l-4 bg-secondary/5 border-l-secondary"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-semibold text-foreground flex items-center space-x-2">
+                        <Info className="w-4 h-4 text-secondary" />
+                        <span>{clause.title}</span>
+                      </h4>
                       <Button
-                        onClick={() => document.getElementById("file-upload")?.click()}
-                        variant="outline"
-                        className="mt-4 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopy(clause.description, `clause-${index}`)}
+                        className="hover:bg-background/50 transition-colors"
                       >
-                        Choose Files
+                        {copiedSection === `clause-${index}` ? (
+                          <CheckCircle className="w-4 h-4 text-secondary" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </Button>
                     </div>
-                  )}
+                    <p className="text-muted-foreground leading-relaxed">{clause.description}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Full Summary */}
+            <Card
+              className="animate-fade-in-up border-border hover:border-secondary/50 transition-all duration-300"
+              style={{ animationDelay: "0.3s" }}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Full Summary</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(summaryData.full_summary, "fullSummary")}
+                    className="hover:bg-secondary/10 transition-colors"
+                  >
+                    {copiedSection === "fullSummary" ? (
+                      <CheckCircle className="w-4 h-4 text-secondary" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="prose prose-gray max-w-none">
+                  {summaryData.full_summary.split("\n\n").map((paragraph, index) => (
+                    <p key={index} className="text-foreground leading-relaxed mb-4">
+                      {paragraph}
+                    </p>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           </div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-card/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Why Choose Saul-ai?</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Professional-grade AI technology designed specifically for legal document analysis
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-2 border-border hover:border-secondary/50">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto bg-secondary/20 rounded-full flex items-center justify-center mb-6 group-hover:bg-secondary/30 transition-colors duration-300">
-                  <Zap className="w-8 h-8 text-secondary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-4 text-foreground">Lightning Fast</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Get comprehensive summaries in seconds, not hours. Our AI processes complex legal documents instantly.
-                </p>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Recommendations */}
+            <Card
+              className="animate-fade-in-up border-border hover:border-secondary/50 transition-all duration-300"
+              style={{ animationDelay: "0.4s" }}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center space-x-2">
+                    <Info className="w-5 h-5 text-secondary" />
+                    <span>Recommendations</span>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(summaryData.recommendations.join("\n• "), "recommendations")}
+                    className="hover:bg-secondary/10 transition-colors"
+                  >
+                    {copiedSection === "recommendations" ? (
+                      <CheckCircle className="w-4 h-4 text-secondary" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  {summaryData.recommendations.map((rec, index) => (
+                    <li key={index} className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-secondary rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-foreground leading-relaxed text-sm">{rec}</span>
+                    </li>
+                  ))}
+                </ul>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-2 border-border hover:border-secondary/50">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto bg-secondary/20 rounded-full flex items-center justify-center mb-6 group-hover:bg-secondary/30 transition-colors duration-300">
-                  <Shield className="w-8 h-8 text-secondary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-4 text-foreground">Secure & Private</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Your documents are processed securely and never stored. Complete privacy and confidentiality
-                  guaranteed.
-                </p>
+            {/* Actions */}
+            <Card
+              className="animate-fade-in-up border-border hover:border-secondary/50 transition-all duration-300"
+              style={{ animationDelay: "0.5s" }}
+            >
+              <CardHeader>
+                <CardTitle>Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  onClick={downloadSummary}
+                  className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground transition-all duration-300 hover:scale-105"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Summary
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push("/")}
+                  className="w-full hover:bg-card transition-colors bg-transparent"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Analyze Another Document
+                </Button>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-2 border-border hover:border-secondary/50">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto bg-secondary/20 rounded-full flex items-center justify-center mb-6 group-hover:bg-secondary/30 transition-colors duration-300">
-                  <CheckCircle className="w-8 h-8 text-secondary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-4 text-foreground">Accurate Analysis</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Trained on legal documents, our AI understands context, terminology, and key legal concepts.
-                </p>
-              </CardContent>
-            </Card>
+            {/* Disclaimer */}
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                <strong>Disclaimer:</strong> This is an AI-generated summary. It is not legal advice and should not be relied upon for legal decisions. Please consult with a qualified attorney.
+              </AlertDescription>
+            </Alert>
           </div>
         </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">How It Works</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Three simple steps to get clear, actionable summaries of your legal documents
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-secondary to-accent rounded-full flex items-center justify-center mb-6 text-2xl font-bold text-secondary-foreground">
-                1
-              </div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground">Upload Document</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Simply drag and drop your legal document or click to browse and select your file.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-secondary to-accent rounded-full flex items-center justify-center mb-6 text-2xl font-bold text-secondary-foreground">
-                2
-              </div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground">AI Analysis</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Our advanced AI processes your document, identifying key points, terms, and legal implications.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-secondary to-accent rounded-full flex items-center justify-center mb-6 text-2xl font-bold text-secondary-foreground">
-                3
-              </div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground">Get Summary</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Receive a clear, structured summary with key insights and actionable recommendations.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-card border-t border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="col-span-2">
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-secondary to-accent rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-secondary-foreground" />
-                </div>
-                <h3 className="text-xl font-bold text-foreground">Saul-ai</h3>
-              </div>
-              <p className="text-muted-foreground leading-relaxed mb-4">
-                Making legal documents accessible to everyone through advanced AI technology.
-              </p>
-              <p className="text-sm text-muted-foreground">© 2024 Saul-ai. All rights reserved.</p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Product</h4>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>
-                  <a href="#" className="hover:text-foreground transition-colors">
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground transition-colors">
-                    Pricing
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground transition-colors">
-                    API
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Support</h4>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>
-                  <a href="#" className="hover:text-foreground transition-colors">
-                    Help Center
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground transition-colors">
-                    Privacy Policy
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground transition-colors">
-                    Terms of Service
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   )
 }
