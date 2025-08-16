@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+python-multipart        # For file uploads
+pydantic
+requests                # For calling Groq API
+PyMuPDF                 # For PDF parsing
+python-docx             # For DOCX parsing
+python-dotenv           # For reading .env API keys
