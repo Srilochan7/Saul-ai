@@ -127,7 +127,7 @@ export default function HomePage() {
           <div className="text-center animate-fade-in-up">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-secondary/10 border border-secondary/20 mb-6">
               <Shield className="w-4 h-4 text-secondary mr-2" />
-              <span className="text-sm font-medium text-secondary">Trusted by 10,000+ Legal Professionals</span>
+              <span className="text-sm font-medium text-secondary">Quality of Legal Professionals</span>
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground via-secondary to-accent bg-clip-text text-transparent leading-tight">
