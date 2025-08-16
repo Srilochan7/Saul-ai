@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, Copy, Download, ArrowLeft, CheckCircle, AlertTriangle, Info } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function ResultsPage() {
   const router = useRouter()
@@ -87,6 +88,8 @@ Overall, this is a fairly standard employment agreement with some restrictive cl
                 <Download className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
+              
+              <ThemeToggle />
             </div>
           </div>
         </div>

@@ -41,39 +41,39 @@
 }
 
 .dark {
-  /* Updated dark mode tokens for professional legal AI theme */
-  --background: oklch(0.08 0.01 240);
-  --foreground: oklch(0.95 0.005 240);
-  --card: oklch(0.12 0.01 240);
+  /* Enhanced dark mode with better contrast, depth, and visual hierarchy */
+  --background: oklch(0.11 0.015 240);
+  --foreground: oklch(0.98 0.005 240);
+  --card: oklch(0.16 0.02 240);
   --card-foreground: oklch(0.95 0.005 240);
-  --popover: oklch(0.08 0.01 240);
-  --popover-foreground: oklch(0.95 0.005 240);
-  --primary: oklch(0.95 0.005 240);
-  --primary-foreground: oklch(0.08 0.01 240);
-  --secondary: oklch(0.6 0.15 270);
+  --popover: oklch(0.13 0.015 240);
+  --popover-foreground: oklch(0.98 0.005 240);
+  --primary: oklch(0.98 0.005 240);
+  --primary-foreground: oklch(0.11 0.015 240);
+  --secondary: oklch(0.65 0.18 270);
   --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.15 0.01 240);
-  --muted-foreground: oklch(0.65 0.005 240);
-  --accent: oklch(0.6 0.15 270);
+  --muted: oklch(0.18 0.02 240);
+  --muted-foreground: oklch(0.7 0.01 240);
+  --accent: oklch(0.65 0.18 270);
   --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.6 0.2 20);
+  --destructive: oklch(0.65 0.22 20);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.2 0.01 240);
-  --input: oklch(0.15 0.01 240);
-  --ring: oklch(0.6 0.15 270);
-  --chart-1: oklch(0.6 0.2 260);
-  --chart-2: oklch(0.65 0.15 220);
-  --chart-3: oklch(0.7 0.15 160);
-  --chart-4: oklch(0.75 0.2 60);
-  --chart-5: oklch(0.65 0.2 20);
-  --sidebar: oklch(0.08 0.01 240);
-  --sidebar-foreground: oklch(0.95 0.005 240);
-  --sidebar-primary: oklch(0.6 0.15 270);
+  --border: oklch(0.25 0.02 240);
+  --input: oklch(0.18 0.02 240);
+  --ring: oklch(0.65 0.18 270);
+  --chart-1: oklch(0.65 0.22 260);
+  --chart-2: oklch(0.7 0.18 220);
+  --chart-3: oklch(0.75 0.18 160);
+  --chart-4: oklch(0.8 0.22 60);
+  --chart-5: oklch(0.7 0.22 20);
+  --sidebar: oklch(0.11 0.015 240);
+  --sidebar-foreground: oklch(0.98 0.005 240);
+  --sidebar-primary: oklch(0.65 0.18 270);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.15 0.01 240);
+  --sidebar-accent: oklch(0.18 0.02 240);
   --sidebar-accent-foreground: oklch(0.95 0.005 240);
-  --sidebar-border: oklch(0.2 0.01 240);
-  --sidebar-ring: oklch(0.6 0.15 270);
+  --sidebar-border: oklch(0.25 0.02 240);
+  --sidebar-ring: oklch(0.65 0.18 270);
 }
 
 @theme inline {
@@ -181,3 +181,5 @@
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
+
+
