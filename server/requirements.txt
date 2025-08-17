@@ -4,3 +4,4 @@ fastapi
 PyMuPDF
 PyMuPDF
 python-multipart
+python-dotenv
