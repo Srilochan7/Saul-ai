@@ -4,7 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import tempfile
 import os
+from dotenv import load_dotenv
 from pdf_parser import process_legal_document
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,25 +29,25 @@ app.add_middleware(
 
 @app.post("/upload/")
 async def analyze_legal_pdf(file: UploadFile = File(...)):
-    if not file.filename or not file.filename.lower().endswith('.pdf'):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
-    
+
     temp_file_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             content = await file.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
-        
+
         result = await process_legal_document(temp_file_path)
         return JSONResponse(content=result)
-    
+
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.error(f"Processing error: {e}")
         raise HTTPException(status_code=500, detail="Processing failed")
-    
+
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
@@ -57,4 +60,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
