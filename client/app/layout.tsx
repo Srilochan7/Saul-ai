@@ -17,7 +17,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "Saul-ai | Free Legal Docs Summarizer AI",
+  title: "Saul-ai",
   description:
     "Transform complex legal documents into clear, actionable summaries with our advanced AI technology. Free, secure, and professional.",
   generator: "v0.app",
