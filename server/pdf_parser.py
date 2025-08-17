@@ -1,188 +1,4 @@
-import fitz  # PyMuPDF
-import logging
-import re
-import os
-import google.generativeai as genai
-import json
-import json5  # forgiving JSON parser
-from typing import Dict, Any
-from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
-# Load keys from env
-GEMINI_KEYS = [
-    os.getenv("GEMINI_API_KEY_1"),
-    os.getenv("GEMINI_API_KEY_2")
-]
-
-
-class PDFProcessor:
-    @staticmethod
-    def extract_clean_text(file_path: str) -> str:
-        all_text = []
-        try:
-            with fitz.open(file_path) as doc:
-                for page in doc:
-                    text = page.get_text("text")
-                    if text.strip():
-                        all_text.append(text.strip())
-                    else:
-                        blocks = page.get_text("blocks")
-                        page_height = page.rect.height
-                        clean_blocks = []
-
-                        for block in blocks:
-                            if len(block) >= 5:
-                                x0, y0, x1, y1, text = block[:5]
-                                if (
-                                    y0 < 50
-                                    or page_height - y1 < 50
-                                    or text.strip().isdigit()
-                                ):
-                                    continue
-                                if len(text.strip()) > 3:
-                                    clean_blocks.append(" ".join(text.split()))
-
-                        if clean_blocks:
-                            all_text.append("\n".join(clean_blocks))
-
-            full_text = "\n\n".join(all_text).strip()
-            full_text = re.sub(r"\s+", " ", full_text)
-            full_text = re.sub(r"\n\s*\n", "\n\n", full_text)
-
-            logger.info(f"Extracted text length: {len(full_text)} characters")
-            logger.info(f"Text preview: {full_text[:300]}...")
-
-            return full_text
-
-        except Exception as e:
-            logger.error(f"PDF extraction failed: {e}")
-            raise RuntimeError(f"PDF parsing failed: {e}")
-
-
-class LegalDocumentValidator:
-    LEGAL_KEYWORDS = [
-        "agreement",
-        "contract",
-        "terms",
-        "conditions",
-        "party",
-        "parties",
-        "whereas",
-        "therefore",
-        "hereby",
-        "consideration",
-        "covenant",
-        "termination",
-        "breach",
-        "liability",
-        "confidential",
-        "employment",
-        "lease",
-        "purchase",
-        "license",
-        "shall",
-        "binding",
-        "governing law",
-    ]
-
-    @classmethod
-    def is_legal_document(cls, text: str) -> bool:
-        if not text or len(text.split()) < 100:
-            return False
-        text_lower = text.lower()
-        keyword_count = sum(
-            1 for keyword in cls.LEGAL_KEYWORDS if keyword in text_lower
-        )
-        return keyword_count >= 5
-
-
-class LegalDocumentAnalyzer:
-    def __init__(self):
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
-
-    def analyze_document(self, text: str) -> Dict[str, Any]:
-        logger.info("Starting Gemini AI document analysis...")
-
-        try:
-            prompt = self._create_analysis_prompt(text)
-            response = self.model.generate_content(prompt)
-            result = self._parse_gemini_response(response.text)
-            logger.info("Gemini AI analysis completed successfully")
-            return result
-
-        except Exception as e:
-            logger.error(f"Gemini API error: {e}")
-            raise RuntimeError("AI analysis failed, please retry.") from e
-
-    def _create_analysis_prompt(self, text: str) -> str:
-        # --- CLEAN PROMPT: AI must generate everything ---
-        return f"""
-You are a legal document analysis expert. 
-Analyze the following legal document and return ONLY valid JSON in this exact structure:
-
-{{
-  "full_summary": "A detailed multi-paragraph summary of the document",
-  "key_points": ["7-10 key points extracted directly from the document"],
-  "critical_causes": ["5-7 critical clauses with explanations"],
-  "recommendations": ["6-8 actionable recommendations for the signer"]
-}}
-
-Rules:
-1. Fill in every field with actual content from the document.
-2. Do not output placeholders or generic text.
-3. Use real names, dates, roles, monetary amounts, and obligations from the document.
-4. Return only valid JSON, no extra text, no code fences.
-
-Document Text:
-{text}
-"""
-
-    def _parse_gemini_response(self, response_text: str) -> Dict[str, Any]:
-        try:
-            response_text = response_text.strip()
-
-            # Remove code fences if present
-            if response_text.startswith("```"):
-                response_text = response_text.split("```")[1]
-
-            # Parse with json5 (forgiving)
-            result = json5.loads(response_text.strip())
-
-            # Add metadata
-            result["originalFileName"] = "uploaded_document.pdf"
-            result["uploadedAt"] = datetime.now().isoformat()
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Failed to parse Gemini JSON response: {e}")
-            logger.error(f"Response was: {response_text[:500]}...")
-            raise ValueError("Invalid response format from AI") from e
-
-
-async def process_legal_document(file_path: str) -> Dict[str, Any]:
-    try:
-        processor = PDFProcessor()
-        text = processor.extract_clean_text(file_path)
-
-        if not text.strip():
-            raise ValueError("No readable text found in PDF")
-
-        validator = LegalDocumentValidator()
-        if not validator.is_legal_document(text):
-            raise ValueError("Document does not appear to be a legal document")
-
-        analyzer = LegalDocumentAnalyzer()
-        result = analyzer.analyze_document(text)
-
-        logger.info("Document analysis completed successfully")
-        return result
-
-    except Exception as e:
-        logger.error(f"Error processing document: {e}")
-        raise
 
 # import fitz  # PyMuPDF
 # import logging
@@ -423,3 +239,202 @@ async def process_legal_document(file_path: str) -> Dict[str, Any]:
 #     except Exception as e:
 #         logger.error(f"Error processing document: {e}")
 #         raise
+
+
+
+
+import fitz  # PyMuPDF
+import logging
+import re
+import os
+import google.generativeai as genai
+import json
+from typing import Dict, Any
+from datetime import datetime
+
+import google.generativeai as genai
+import os
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY_1"))
+
+
+logger = logging.getLogger(__name__)
+
+# Load keys from env
+GEMINI_KEYS = [
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2")
+]
+
+
+class PDFProcessor:
+    @staticmethod
+    def extract_clean_text(file_path: str) -> str:
+        all_text = []
+        try:
+            with fitz.open(file_path) as doc:
+                for page in doc:
+                    text = page.get_text("text")
+                    if text.strip():
+                        all_text.append(text.strip())
+                    else:
+                        blocks = page.get_text("blocks")
+                        page_height = page.rect.height
+                        clean_blocks = []
+
+                        for block in blocks:
+                            if len(block) >= 5:
+                                x0, y0, x1, y1, text = block[:5]
+                                if (
+                                    y0 < 50
+                                    or page_height - y1 < 50
+                                    or text.strip().isdigit()
+                                ):
+                                    continue
+                                if len(text.strip()) > 3:
+                                    clean_blocks.append(" ".join(text.split()))
+
+                        if clean_blocks:
+                            all_text.append("\n".join(clean_blocks))
+
+            full_text = "\n\n".join(all_text).strip()
+            full_text = re.sub(r"\s+", " ", full_text)
+            full_text = re.sub(r"\n\s*\n", "\n\n", full_text)
+
+            logger.info(f"Extracted text length: {len(full_text)} characters")
+            logger.info(f"Text preview: {full_text[:300]}...")
+
+            return full_text
+
+        except Exception as e:
+            logger.error(f"PDF extraction failed: {e}")
+            raise RuntimeError(f"PDF parsing failed: {e}")
+
+
+class LegalDocumentValidator:
+    LEGAL_KEYWORDS = [
+        "agreement",
+        "contract",
+        "terms",
+        "conditions",
+        "party",
+        "parties",
+        "whereas",
+        "therefore",
+        "hereby",
+        "consideration",
+        "covenant",
+        "termination",
+        "breach",
+        "liability",
+        "confidential",
+        "employment",
+        "lease",
+        "purchase",
+        "license",
+        "shall",
+        "binding",
+        "governing law",
+    ]
+
+    @classmethod
+    def is_legal_document(cls, text: str) -> bool:
+        if not text or len(text.split()) < 100:
+            return False
+        text_lower = text.lower()
+        keyword_count = sum(
+            1 for keyword in cls.LEGAL_KEYWORDS if keyword in text_lower
+        )
+        return keyword_count >= 5
+
+
+class LegalDocumentAnalyzer:
+    def __init__(self):
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
+
+    def analyze_document(self, text: str) -> Dict[str, Any]:
+        logger.info("Starting Gemini AI document analysis...")
+
+        try:
+            prompt = self._create_analysis_prompt(text)
+            response = self.model.generate_content(prompt)
+
+            # The AI generates the full JSON
+            result = self._parse_gemini_response(response.text)
+            logger.info("Gemini AI analysis completed successfully")
+            return result
+
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
+            return {
+                "error": "AI analysis failed, no JSON could be generated",
+                "details": str(e)
+            }
+
+    def _create_analysis_prompt(self, text: str) -> str:
+        return f"""
+You are a highly skilled legal document analysis expert. Your task is to conduct a comprehensive and detailed analysis of the following legal document. Return ONLY valid JSON. Do NOT include any static placeholders; generate all values dynamically.
+
+Document Text to Analyze:
+{text}
+
+JSON Structure to Follow:
+{{
+  "key_points": ["..."],
+  "critical_clauses": {{}},
+  "summary": "...",
+  "recommendations": ["..."],
+  "actions": ["..."]
+}}
+
+Requirements:
+- The summary should be at least 200-500 words
+- Generate the full JSON dynamically based on the actual document.
+- Include real names, dates, figures, and specific clauses.
+- JSON only. Do not include any explanations, commentary, or code fences.
+"""
+
+    def _parse_gemini_response(self, response_text: str) -> Dict[str, Any]:
+        try:
+            response_text = response_text.strip()
+
+            # Strip code fences if present
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            elif response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+
+            return json.loads(response_text.strip())
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Gemini JSON response: {e}")
+            logger.error(f"Response was: {response_text[:500]}...")
+            raise ValueError("Invalid JSON response from AI")
+
+
+async def process_legal_document(file_path: str) -> Dict[str, Any]:
+    try:
+        processor = PDFProcessor()
+        text = processor.extract_clean_text(file_path)
+
+        if not text.strip():
+            raise ValueError("No readable text found in PDF")
+
+        validator = LegalDocumentValidator()
+        if not validator.is_legal_document(text):
+            raise ValueError("Document does not appear to be a legal document")
+
+        analyzer = LegalDocumentAnalyzer()
+        result = analyzer.analyze_document(text)
+
+        logger.info("Document analysis completed successfully")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error processing document: {e}")
+        return {
+            "error": "Document processing failed",
+            "details": str(e)
+        }
