@@ -4,7 +4,7 @@ import re
 import os
 import google.generativeai as genai
 import json
-import json5  # more forgiving JSON parser
+import json5  # forgiving JSON parser
 from typing import Dict, Any
 from datetime import datetime
 
@@ -114,31 +114,26 @@ class LegalDocumentAnalyzer:
 
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
-            # If you want NO predefined fallback, just raise instead of returning static text
             raise RuntimeError("AI analysis failed, please retry.") from e
 
     def _create_analysis_prompt(self, text: str) -> str:
-        # --- CLEANED PROMPT (no predefined filler text) ---
+        # --- CLEAN PROMPT: AI must generate everything ---
         return f"""
-You are a highly skilled legal document analysis expert. Analyze the following legal document and return ONLY valid JSON in the exact structure below. 
-Every field must be filled with detailed, specific content extracted from the document itself.
+You are a legal document analysis expert. 
+Analyze the following legal document and return ONLY valid JSON in this exact structure:
 
 {{
-  "key_points": [],
-  "critical_clauses": {{}},
-  "summary": "",
-  "recommendations": [],
-  "actions": ["Download Summary", "Analyze Another Document"]
+  "full_summary": "A detailed multi-paragraph summary of the document",
+  "key_points": ["7-10 key points extracted directly from the document"],
+  "critical_causes": ["5-7 critical clauses with explanations"],
+  "recommendations": ["6-8 actionable recommendations for the signer"]
 }}
 
-Core Requirements:
-1. Extract actual details (names, dates, roles, monetary amounts, obligations).
-2. Identify the document type (e.g., Employment Agreement, NDA, Lease).
-3. Provide 7–10 detailed key points.
-4. Identify at least 5–7 critical clauses with multi-sentence explanations.
-5. Write a 4–5 paragraph summary covering purpose, parties, rights, responsibilities, financial terms, duration, and termination.
-6. Provide 6–8 actionable recommendations tied to specific clauses.
-7. Return only valid JSON, no extra text or code fences.
+Rules:
+1. Fill in every field with actual content from the document.
+2. Do not output placeholders or generic text.
+3. Use real names, dates, roles, monetary amounts, and obligations from the document.
+4. Return only valid JSON, no extra text, no code fences.
 
 Document Text:
 {text}
@@ -152,7 +147,7 @@ Document Text:
             if response_text.startswith("```"):
                 response_text = response_text.split("```")[1]
 
-            # Use json5 for more forgiving parsing
+            # Parse with json5 (forgiving)
             result = json5.loads(response_text.strip())
 
             # Add metadata
