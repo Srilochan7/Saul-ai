@@ -22,7 +22,7 @@ export default function HomePage() {
   const router = useRouter()
 
   // Your FastAPI server URL - update this to match your server
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://saul-ai.onrender.com"
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
