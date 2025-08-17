@@ -496,7 +496,7 @@ export default function HomePage() {
               <p className="text-muted-foreground leading-relaxed mb-4">
                 Making legal documents accessible to everyone through advanced AI technology.
               </p>
-              <p className="text-sm text-muted-foreground">© 2024 Saul-ai. All rights reserved.</p>
+              <p className="text-sm text-muted-foreground">© 2025 Saul-ai. All rights reserved.</p>
             </div>
 
             <div>
